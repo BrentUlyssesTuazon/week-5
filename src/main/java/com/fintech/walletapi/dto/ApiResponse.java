@@ -1,4 +1,4 @@
-package com.fintech.walletapi;
+package com.fintech.walletapi.dto;
 
 import java.time.LocalDateTime;
 

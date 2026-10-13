@@ -17,6 +17,9 @@ public class AccountDTO {
     private BigDecimal balance;
     private String status;
 
+    // Added for Week 5 (@PostAuthorize compares this against authentication.name)
+    private String username;
+
     public AccountDTO() {
     }
 
@@ -73,5 +76,14 @@ public class AccountDTO {
 
     public void setAccountType(String accountType) {
         this.accountType = accountType;
+    }
+
+    // Getter and Setter for username
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 }

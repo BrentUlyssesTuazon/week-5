@@ -1,6 +1,6 @@
 package com.fintech.walletapi.controller;
 
-import com.fintech.walletapi.ApiResponse;
+import com.fintech.walletapi.dto.ApiResponse;
 import com.fintech.walletapi.dto.AccountDTO;
 import com.fintech.walletapi.service.AccountService;
 import jakarta.validation.Valid;
