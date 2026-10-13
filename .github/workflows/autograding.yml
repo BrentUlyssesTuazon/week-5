@@ -1,0 +1,533 @@
+name: Week 5 Autograding
+
+on:
+  push:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 1: Structural checks (fast, no JVM spin-up)
+  # ──────────────────────────────────────────────────────────────────────────
+  structural-checks:
+    name: Structural Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Step 1: Dependencies ───────────────────────────────────────────────
+      - name: "Check: spring-boot-starter-security in pom.xml"
+        continue-on-error: true
+        run: |
+          # Exact artifactId match
+          grep -q "<artifactId>spring-boot-starter-security</artifactId>" pom.xml \
+            || (echo "FAIL: spring-boot-starter-security not in pom.xml (Step 1)" && exit 1)
+          echo "PASS: spring-boot-starter-security found"
+
+      - name: "Check: jjwt-api dependency in pom.xml"
+        continue-on-error: true
+        run: |
+          grep -q "jjwt-api" pom.xml \
+            || (echo "FAIL: jjwt-api not in pom.xml (Step 1)" && exit 1)
+          echo "PASS: jjwt-api found"
+
+      - name: "Check: jjwt-impl dependency in pom.xml"
+        continue-on-error: true
+        run: |
+          grep -q "jjwt-impl" pom.xml \
+            || (echo "FAIL: jjwt-impl not in pom.xml (Step 1)" && exit 1)
+          echo "PASS: jjwt-impl found"
+
+      - name: "Check: jjwt-jackson dependency in pom.xml"
+        continue-on-error: true
+        run: |
+          grep -q "jjwt-jackson" pom.xml \
+            || (echo "FAIL: jjwt-jackson not in pom.xml (Step 1)" && exit 1)
+          echo "PASS: jjwt-jackson found"
+
+      # ── Prerequisite cleanup: ApiResponse moved into dto ──────────────────
+      - name: "Check: ApiResponse is in the dto package"
+        continue-on-error: true
+        run: |
+          [ -f src/main/java/com/fintech/walletapi/dto/ApiResponse.java ] \
+            || (echo "FAIL: ApiResponse.java must be moved to com.fintech.walletapi.dto (Prerequisite Checklist)" && exit 1)
+          echo "PASS: ApiResponse is in dto"
+
+      # ── Step 2: User entity & UserRepository ─────────────────────────────
+      - name: "Check: User entity exists"
+        continue-on-error: true
+        run: |
+          find src/main -name "User.java" -path "*/entity/*" | grep -q . \
+            || (echo "FAIL: User.java not found in entity package (Step 2)" && exit 1)
+          echo "PASS: User.java found"
+
+      - name: "Check: User is annotated with @Entity"
+        continue-on-error: true
+        run: |
+          grep -r "@Entity" src/main/java/com/fintech/walletapi/entity/User.java 2>/dev/null | grep -q . \
+            || (echo "FAIL: User.java missing @Entity annotation" && exit 1)
+          echo "PASS: User has @Entity"
+
+      - name: "Check: User implements UserDetails"
+        continue-on-error: true
+        run: |
+          grep -r "UserDetails" src/main/java/com/fintech/walletapi/entity/User.java 2>/dev/null | grep -q . \
+            || (echo "FAIL: User must implement UserDetails" && exit 1)
+          echo "PASS: User implements UserDetails"
+
+      - name: "Check: Customer has OneToOne(mappedBy) back-reference to User"
+        continue-on-error: true
+        run: |
+          grep -r "mappedBy" src/main/java/com/fintech/walletapi/entity/Customer.java 2>/dev/null | grep -q . \
+            || (echo "FAIL: Customer.java must have @OneToOne(mappedBy = \"customer\") (Step 2)" && exit 1)
+          echo "PASS: Customer has mappedBy back-reference"
+
+      - name: "Check: UserRepository interface exists"
+        continue-on-error: true
+        run: |
+          find src/main -name "UserRepository.java" | grep -q . \
+            || (echo "FAIL: UserRepository.java not found in repository package (Step 2)" && exit 1)
+          echo "PASS: UserRepository.java found"
+
+      - name: "Check: UserRepository has findByUsername derived query"
+        continue-on-error: true
+        run: |
+          grep -r "findByUsername" src/main --include="*.java" | grep -q . \
+            || (echo "FAIL: findByUsername not found in UserRepository (Step 2)" && exit 1)
+          echo "PASS: findByUsername found"
+
+      # ── Step 3: CustomUserDetailsService ──────────────────────────────────
+      - name: "Check: CustomUserDetailsService exists in security package"
+        continue-on-error: true
+        run: |
+          find src/main -name "CustomUserDetailsService.java" | grep -q . \
+            || (echo "FAIL: CustomUserDetailsService.java not found (Step 3)" && exit 1)
+          echo "PASS: CustomUserDetailsService.java found"
+
+      # ── Step 4: JWT utilities ──────────────────────────────────────────────
+      - name: "Check: JwtUtil exists in security package"
+        continue-on-error: true
+        run: |
+          find src/main -name "JwtUtil.java" | grep -q . \
+            || (echo "FAIL: JwtUtil.java not found in security package (Step 4)" && exit 1)
+          echo "PASS: JwtUtil.java found"
+
+      - name: "Check: JwtAuthenticationFilter exists in security package"
+        continue-on-error: true
+        run: |
+          find src/main -name "JwtAuthenticationFilter.java" | grep -q . \
+            || (echo "FAIL: JwtAuthenticationFilter.java not found (Step 4)" && exit 1)
+          echo "PASS: JwtAuthenticationFilter.java found"
+
+      # ── Step 5: Error handlers ─────────────────────────────────────────────
+      - name: "Check: CustomAuthenticationEntryPoint exists"
+        continue-on-error: true
+        run: |
+          find src/main -name "CustomAuthenticationEntryPoint.java" | grep -q . \
+            || (echo "FAIL: CustomAuthenticationEntryPoint.java not found (Step 5)" && exit 1)
+          echo "PASS: CustomAuthenticationEntryPoint.java found"
+
+      - name: "Check: CustomAccessDeniedHandler exists"
+        continue-on-error: true
+        run: |
+          find src/main -name "CustomAccessDeniedHandler.java" | grep -q . \
+            || (echo "FAIL: CustomAccessDeniedHandler.java not found (Step 5)" && exit 1)
+          echo "PASS: CustomAccessDeniedHandler.java found"
+
+      # ── Step 6: SecurityConfig ─────────────────────────────────────────────
+      - name: "Check: SecurityConfig exists in security package"
+        continue-on-error: true
+        run: |
+          find src/main -name "SecurityConfig.java" | grep -q . \
+            || (echo "FAIL: SecurityConfig.java not found (Step 6)" && exit 1)
+          echo "PASS: SecurityConfig.java found"
+
+      - name: "Check: SecurityConfig has @EnableWebSecurity"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "SecurityConfig.java" | head -1)
+          [ -n "$FILE" ] && grep -q "@EnableWebSecurity" "$FILE" \
+            || (echo "FAIL: @EnableWebSecurity not found in SecurityConfig (Step 6)" && exit 1)
+          echo "PASS: @EnableWebSecurity found"
+
+      - name: "Check: SecurityConfig has @EnableMethodSecurity"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "SecurityConfig.java" | head -1)
+          [ -n "$FILE" ] && grep -q "@EnableMethodSecurity" "$FILE" \
+            || (echo "FAIL: @EnableMethodSecurity not found — required for @PreAuthorize/@PostAuthorize (Step 6)" && exit 1)
+          echo "PASS: @EnableMethodSecurity found"
+
+      - name: "Check: SecurityConfig permits /api/v1/auth/** without token"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "SecurityConfig.java" | head -1)
+          [ -n "$FILE" ] && grep -E '"/api/v1/auth/\*\*"' "$FILE" | grep -q "permitAll" \
+            || (echo "FAIL: .requestMatchers(\"/api/v1/auth/**\").permitAll() not found in SecurityConfig (Step 6)" && exit 1)
+          echo "PASS: permitAll found for auth endpoints"
+
+      # ── Step 7: Auth DTOs ─────────────────────────────────────────────────
+      - name: "Check: LoginDTO exists"
+        continue-on-error: true
+        run: |
+          find src/main -name "LoginDTO.java" | grep -q . \
+            || (echo "FAIL: LoginDTO.java not found (Step 7)" && exit 1)
+          echo "PASS: LoginDTO.java found"
+
+      - name: "Check: RegisterDTO exists"
+        continue-on-error: true
+        run: |
+          find src/main -name "RegisterDTO.java" | grep -q . \
+            || (echo "FAIL: RegisterDTO.java not found (Step 7)" && exit 1)
+          echo "PASS: RegisterDTO.java found"
+
+      # ── Step 8: AuthController ─────────────────────────────────────────────
+      - name: "Check: AuthController exists in controller package"
+        continue-on-error: true
+        run: |
+          find src/main -name "AuthController.java" | grep -q . \
+            || (echo "FAIL: AuthController.java not found (Step 8)" && exit 1)
+          echo "PASS: AuthController.java found"
+
+      - name: "Check: AuthController has /register endpoint"
+        continue-on-error: true
+        run: |
+          grep -rE '"/register"' src/main/java/com/fintech/walletapi/controller/AuthController.java 2>/dev/null | grep -q . \
+            || (echo "FAIL: /register endpoint not found in AuthController (Step 8)" && exit 1)
+          echo "PASS: /register endpoint found"
+
+      - name: "Check: AuthController has /login endpoint"
+        continue-on-error: true
+        run: |
+          grep -rE '"/login"' src/main/java/com/fintech/walletapi/controller/AuthController.java 2>/dev/null | grep -q . \
+            || (echo "FAIL: /login endpoint not found in AuthController (Step 8)" && exit 1)
+          echo "PASS: /login endpoint found"
+
+      # ── Step 9: /me endpoint ───────────────────────────────────────────────
+      - name: "Check: /me endpoint exists in CustomerController"
+        continue-on-error: true
+        run: |
+          grep -r '"/me"' src/main --include="*.java" | grep -q . \
+            || (echo "FAIL: /me endpoint mapping not found in CustomerController (Step 9)" && exit 1)
+          echo "PASS: /me endpoint found"
+
+      # ── Step 10: GlobalExceptionHandler security handlers ─────────────────
+      - name: "Check: GlobalExceptionHandler handles BadCredentialsException"
+        continue-on-error: true
+        run: |
+          grep -rl "class GlobalExceptionHandler" src/main --include="*.java" | xargs grep -Eq "@ExceptionHandler\(.*BadCredentialsException" \
+            || (echo "FAIL: BadCredentialsException not handled in GlobalExceptionHandler (Step 10)" && exit 1)
+          echo "PASS: BadCredentialsException handler found"
+
+      - name: "Check: GlobalExceptionHandler handles AccessDeniedException"
+        continue-on-error: true
+        run: |
+          grep -rl "class GlobalExceptionHandler" src/main --include="*.java" | xargs grep -Eq "@ExceptionHandler\(.*AccessDeniedException" \
+            || (echo "FAIL: AccessDeniedException not handled in GlobalExceptionHandler (Step 10)" && exit 1)
+          echo "PASS: AccessDeniedException handler found"
+
+      # ── Step 11: AccountDTO.username field ────────────────────────────────
+      - name: "Check: AccountDTO has username field"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "AccountDTO.java" | head -1)
+          grep -Eq "private String username" "$FILE" \
+            || (echo "FAIL: AccountDTO missing 'username' field — needed for @PostAuthorize (Step 11)" && exit 1)
+          echo "PASS: AccountDTO has username field"
+
+      # ── Step 12: Method Security annotations ───────────────────────────────
+      - name: "Check: @PreAuthorize on getPaginatedAccounts in AccountService"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "AccountService.java" | head -1)
+          # @PreAuthorize must sit just above the getPaginatedAccounts method
+          [ -n "$FILE" ] && grep -B3 "getPaginatedAccounts" "$FILE" | grep -q "@PreAuthorize" \
+            || (echo "FAIL: @PreAuthorize not found in AccountService (Step 12)" && exit 1)
+          echo "PASS: @PreAuthorize found"
+
+      - name: "Check: @PostAuthorize on getAccountById in AccountService"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "AccountService.java" | head -1)
+          # @PostAuthorize must sit just above the getAccountById method
+          [ -n "$FILE" ] && grep -B3 "AccountDTO getAccountById" "$FILE" | grep -q "@PostAuthorize" \
+            || (echo "FAIL: @PostAuthorize not found in AccountService (Step 12)" && exit 1)
+          echo "PASS: @PostAuthorize found"
+
+      - name: "Check: @PreAuthorize ADMIN on the remaining Admin operations in AccountService"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "AccountService.java" | head -1)
+          [ -n "$FILE" ] || (echo "FAIL: AccountService.java not found (Step 12.3)" && exit 1)
+          # @PreAuthorize("hasRole('ADMIN')") must sit just above each of these methods
+          for m in getAllAccounts getAccountsByStatus updateAccountBalance closeAccount; do
+            grep -B3 "$m(" "$FILE" | grep "@PreAuthorize" | grep -q "hasRole('ADMIN')" \
+              || (echo "FAIL: @PreAuthorize(\"hasRole('ADMIN')\") not found above AccountService.$m (Step 12.3)" && exit 1)
+          done
+          echo "PASS: getAllAccounts, getAccountsByStatus, updateAccountBalance and closeAccount are Admin-only"
+
+      - name: "Check: @PreAuthorize ADMIN on createCustomer in CustomerService"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "CustomerService.java" | head -1)
+          [ -n "$FILE" ] && grep -B3 "CustomerDTO createCustomer" "$FILE" | grep "@PreAuthorize" | grep -q "hasRole('ADMIN')" \
+            || (echo "FAIL: @PreAuthorize(\"hasRole('ADMIN')\") not found above CustomerService.createCustomer (Step 12.3)" && exit 1)
+          echo "PASS: createCustomer is Admin-only"
+
+      - name: "Check: AccountSecurity bean exists with isOwnCustomer"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "AccountSecurity.java" | head -1)
+          [ -n "$FILE" ] && grep -Eq '@Component\("accountSecurity"\)' "$FILE" && grep -q "isOwnCustomer" "$FILE" \
+            || (echo "FAIL: AccountSecurity with @Component(\"accountSecurity\") and isOwnCustomer not found (Step 12.4)" && exit 1)
+          echo "PASS: AccountSecurity bean found"
+
+      - name: "Check: @PreAuthorize with @accountSecurity.isOwnCustomer on createAccount in AccountService"
+        continue-on-error: true
+        run: |
+          FILE=$(find src/main -name "AccountService.java" | head -1)
+          # @PreAuthorize must sit just above the createAccount method and call the AccountSecurity bean
+          [ -n "$FILE" ] && grep -B3 "AccountDTO createAccount" "$FILE" | grep "@PreAuthorize" | grep -q "@accountSecurity.isOwnCustomer" \
+            || (echo "FAIL: @PreAuthorize(\"hasRole('ADMIN') or @accountSecurity.isOwnCustomer(...)\") not found above createAccount (Step 12.4)" && exit 1)
+          echo "PASS: createAccount checks the customer owner"
+
+      # ── Challenge (optional): Admin register endpoint ─────────────────────
+      - name: "Bonus check: /register/admin endpoint exists in AuthController (Challenge)"
+        run: |
+          FILE=$(find src/main -name "AuthController.java" | head -1)
+          if [ -n "$FILE" ] && grep -q "register/admin" "$FILE"; then echo "BONUS PASS: /register/admin endpoint found"; else echo "BONUS MISS: /register/admin endpoint (Challenge, optional, no points lost)"; fi
+
+      - name: "Bonus check: /register/admin is protected with @PreAuthorize ADMIN (Challenge)"
+        run: |
+          FILE=$(find src/main -name "AuthController.java" | head -1)
+          if [ -n "$FILE" ] && grep -B4 -A4 "register/admin" "$FILE" | grep "@PreAuthorize" | grep -q "ADMIN"; then echo "BONUS PASS: /register/admin has @PreAuthorize ADMIN"; else echo "BONUS MISS: @PreAuthorize(\"hasRole('ADMIN')\") on /register/admin (Challenge, optional, no points lost)"; fi
+
+      - name: "Bonus check: SecurityConfig requires a token for /register/admin (Challenge Hint 3)"
+        run: |
+          FILE=$(find src/main -name "SecurityConfig.java" | head -1)
+          if [ -n "$FILE" ] && grep '"/api/v1/auth/register/admin"' "$FILE" | grep -q "authenticated"; then echo "BONUS PASS: /register/admin rule is .authenticated()"; else echo "BONUS MISS: .requestMatchers(\"/api/v1/auth/register/admin\").authenticated() (Challenge, optional, no points lost)"; fi
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # JOB 2: Behavior tests (Maven + H2 in-memory)
+  # ──────────────────────────────────────────────────────────────────────────
+  behavior-tests:
+    name: Behavior Tests
+    runs-on: ubuntu-latest
+    needs: structural-checks
+    if: always()   # run even if some structural checks failed
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # Surefire has no command-line property for its reports folder, so each run
+      # writes to target/surefire-reports and the reports are copied out afterwards
+      # (otherwise the bonus run would overwrite the core results).
+      - name: Run Week 5 core tests (H2 in-memory DB)
+        run: |
+          rm -rf target/surefire-reports target/core-reports
+          rc=0
+          mvn test --no-transfer-progress \
+            -Dtest='Week5LabTest*' \
+            -DexcludedGroups=bonus \
+            -Dsurefire.failIfNoSpecifiedTests=false || rc=$?
+          mkdir -p target/core-reports
+          cp target/surefire-reports/TEST-*.xml target/core-reports/ 2>/dev/null || true
+          exit $rc
+        continue-on-error: true
+
+      - name: Run Week 5 bonus tests (Challenge, optional)
+        run: |
+          rm -rf target/surefire-reports target/bonus-reports
+          rc=0
+          mvn test --no-transfer-progress \
+            -Dtest='Week5LabTest*' \
+            -Dgroups=bonus \
+            -Dsurefire.failIfNoSpecifiedTests=false || rc=$?
+          mkdir -p target/bonus-reports
+          cp target/surefire-reports/TEST-*.xml target/bonus-reports/ 2>/dev/null || true
+          exit $rc
+        continue-on-error: true
+
+      - name: Calculate score and emit results.json
+        if: always()
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+          RUN_STARTED_AT: ${{ github.run_started_at }}
+        run: |
+          python3 - <<'EOF'
+          import os, glob, json, xml.etree.ElementTree as ET
+          from collections import defaultdict
+          from datetime import datetime, timezone, timedelta
+
+          STUDENT = os.environ.get("GITHUB_ACTOR", "unknown")
+          REPO    = os.environ.get("GITHUB_REPOSITORY", "unknown")
+
+          # Submission timestamp — prefer commit time, fall back to run start
+          raw_ts = os.environ.get("COMMIT_TIMESTAMP") or os.environ.get("RUN_STARTED_AT", "")
+          try:
+              dt      = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+              dt_pht  = dt.astimezone(timezone(timedelta(hours=8)))
+              submitted_at         = dt.isoformat()
+              submitted_at_display = dt_pht.strftime("%b %d, %Y  %I:%M %p PHT")
+          except Exception:
+              submitted_at         = "unknown"
+              submitted_at_display = "unknown"
+
+          # ── Step groups ──────────────────────────────────────────────────────
+          # Surefire writes the @Nested class's @DisplayName as the testcase
+          # classname (e.g. "Step 2: User Entity & Repository"), so groups are
+          # matched on that display-name prefix. The @Nested class name is kept
+          # as a fallback for reports that use "Week5LabTest$Step2UserEntity".
+          # Core groups set the score. The bonus group is reported but never lowers it.
+          GROUPS = [
+              ("Step2UserEntity", "Step 2:", "Step 2 — User Entity & Repository", "User entity with username, password, role and Customer link; UserRepository.findByUsername"),
+              ("Step3UserDetailsService", "Step 3:", "Step 3 — CustomUserDetailsService", "Loads users from the database for Spring Security"),
+              ("Step4JwtUtils", "Step 4:", "Step 4 — JWT Utilities", "JwtUtil generates/validates tokens; JwtAuthenticationFilter reads the Bearer token"),
+              ("Step5ErrorHandlers", "Step 5:", "Step 5 — Custom Security Error Handlers", "CustomAuthenticationEntryPoint (401) and CustomAccessDeniedHandler (403) exist"),
+              ("Step6SecurityConfig", "Step 6:", "Step 6 — SecurityConfig", "Stateless SecurityFilterChain, /api/v1/auth/** open, everything else authenticated"),
+              ("Step7AuthDtos", "Step 7:", "Step 7 — Auth DTOs", "RegisterDTO and LoginDTO"),
+              ("Step8AuthController", "Step 8:", "Step 8 — AuthController Register & Login", "POST /api/v1/auth/register and /login return ApiResponse; login returns a JWT"),
+              ("SecurityEnforcement", "Security Enforcement:", "Security Enforcement — JWT Required", "Protected endpoints return a JSON 401 without a valid token"),
+              ("Step9MeEndpoint", "Step 9:", "Step 9 — GET /api/v1/customers/me", "Identity comes from the JWT, not the URL"),
+              ("Step10SecurityExceptions", "Step 10:", "Step 10 — GlobalExceptionHandler security handlers", "BadCredentialsException → 401 and AccessDeniedException → 403 ErrorResponseDTO"),
+              ("Step11AccountDtoUsername", "Step 11:", "Step 11 — AccountDTO.username", "AccountDTO carries the owner's login username"),
+              ("Step12MethodSecurity", "Step 12:", "Step 12 — Method Security (RBAC)", "@PreAuthorize / @PostAuthorize ownership and role rules"),
+          ]
+          BONUS_GROUPS = [
+              ("ChallengeAdminEndpoint", "Challenge (bonus):", "Bonus: Challenge — Admin Registration Endpoint", "POST /api/v1/auth/register/admin restricted to ADMIN"),
+          ]
+
+          # ── Parse surefire XML ────────────────────────────────────────────────
+          def parse(folder):
+              passed = total = 0
+              cases = []
+              for path in glob.glob(f"{folder}/TEST-*.xml"):
+                  root = ET.parse(path).getroot()
+                  for tc in root.findall("testcase"):
+                      name      = tc.attrib.get("name", "")
+                      classname = tc.attrib.get("classname", "")
+                      suffix    = classname.split("$")[-1] if "$" in classname else ""
+                      skipped   = tc.find("skipped") is not None
+                      failed    = tc.find("failure") is not None or tc.find("error") is not None
+                      msg       = ""
+                      for child in tc:
+                          if child.tag in ("failure", "error"):
+                              msg = (child.attrib.get("message") or child.text or "")[:150]
+                      if skipped:
+                          status = "skipped"
+                      elif failed:
+                          status = "failed"
+                          total += 1
+                      else:
+                          status = "passed"
+                          passed += 1
+                          total  += 1
+                      cases.append({"name": name, "classname": classname, "suffix": suffix,
+                                    "status": status, "msg": msg})
+              return passed, total, cases
+
+          grand_passed, grand_total, core_cases = parse("target/core-reports")
+          bonus_passed, bonus_total, bonus_cases = parse("target/bonus-reports")
+
+          # ── Group by step ─────────────────────────────────────────────────────
+          def group(cases, groups):
+              grouped = defaultdict(lambda: {"passed": [], "failed": [], "skipped": []})
+              for tc in cases:
+                  for s, prefix, label, _ in groups:
+                      if tc["suffix"] == s or tc["classname"].startswith(prefix):
+                          grouped[label][tc["status"]].append(tc)
+                          break
+              return grouped
+
+          grouped = group(core_cases, GROUPS)
+          grouped.update(group(bonus_cases, BONUS_GROUPS))
+
+          pts       = 5
+          score_val = grand_passed * pts
+          max_val   = grand_total  * pts
+          pct       = int(score_val / max_val * 100) if max_val else 0
+          bonus_val = bonus_passed * pts
+          bonus_max = bonus_total  * pts
+
+          # ── Print minimal summary to CI log ──────────────────────────────────
+          print(f"Core: {score_val}/{max_val} pts ({pct}%)  —  {grand_passed}/{grand_total} tests passed")
+          print(f"Bonus: {bonus_val}/{bonus_max} pts  —  {bonus_passed}/{bonus_total} optional tests passed (not part of the grade)")
+          print(f"Submitted: {submitted_at_display}  |  Student: @{STUDENT}")
+
+          # ── Write score.txt (score= is the core score; scripts read this line) ──
+          os.makedirs("test-results", exist_ok=True)
+          with open("test-results/score.txt", "w") as f:
+              f.write(f"score={score_val}/{max_val}\n")
+              f.write(f"passed={grand_passed}\n")
+              f.write(f"total={grand_total}\n")
+              f.write(f"bonus={bonus_val}/{bonus_max}\n")
+
+          # ── Write results.json (instructor-only; score/max/pct are core) ─────
+          results = {
+              "week": 5,
+              "student": STUDENT,
+              "repo": REPO,
+              "submitted_at": submitted_at,
+              "submitted_at_display": submitted_at_display,
+              "score": score_val,
+              "max": max_val,
+              "pct": pct,
+              "passed": grand_passed,
+              "total": grand_total,
+              "bonus": {"score": bonus_val, "max": bonus_max,
+                        "passed": bonus_passed, "total": bonus_total},
+              "groups": []
+          }
+          for suffix, prefix, label, objective in GROUPS + BONUS_GROUPS:
+              g       = grouped.get(label, {"passed": [], "failed": [], "skipped": []})
+              p, f, s = g["passed"], g["failed"], g["skipped"]
+              counted = len(p) + len(f)
+              results["groups"].append({
+                  "label":     label,
+                  "objective": objective,
+                  "bonus":     label.startswith("Bonus:"),
+                  "passed":    len(p),
+                  "failed":    len(f),
+                  "skipped":   len(s),
+                  "total":     counted,
+                  "mastered":  counted > 0 and len(f) == 0,
+                  "failing_tests": [
+                      {"name": tc["name"], "hint": tc["msg"].replace("\n", " ").strip()}
+                      for tc in f
+                  ]
+              })
+          with open("test-results/results.json", "w") as f:
+              json.dump(results, f, indent=2)
+          EOF
+
+      - name: Upload grading artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test-results/score.txt
+            test-results/results.json
+          retention-days: 90
+
+      - name: Upload surefire reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: surefire-reports
+          path: |
+            target/core-reports/
+            target/bonus-reports/
+          retention-days: 90
